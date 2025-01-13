@@ -1,0 +1,198 @@
+1- No cmd do Laragon execute para criar seu projeto:
+      -composer create-project laravel/laravel nomeDoProjetoAqui
+
+2- Abra a pasta do projeto recém criado em sua IDE.
+
+3- Configure o banco de dados no arquivo ".env"
+      DB_CONNECTION=mysql
+      DB_HOST=127.0.0.1
+      DB_PORT=3306
+      DB_DATABASE=NOME_DO_BANCO_AQUI
+      DB_USERNAME=root
+      DB_PASSWORD=SENHA_DO_BANCO_AQUI	
+
+4- Crie o arquivo para migrations
+      - php artisan make:migration create_products_table
+
+5- No arquivo gerado em "database/migrations/xxxx_xx_xx_create_products_table.php", configure os campos da tabela:
+
+	public function up(){
+    	Schema::create('products', function (Blueprint $table) {
+        	$table->id();
+        	$table->string('nome');
+        	$table->decimal('preco', 8, 2); // Preço com até 8 dígitos e 2 decimais.
+        	$table->timestamps(); // Campos "created_at" e "updated_at".
+    	   });
+	}
+
+6- Execute a migração para criar a tabela no banco:
+      - php artisan migrate
+
+7- No terminal, gere o modelo:
+      - php artisan make:model Product
+
+8- No arquivo app/Models/Product.php, configure os campos preenchíveis:
+      class Product extends Model
+      {
+          use HasFactory;
+ 
+          protected $fillable = ['nome', 'preco'];
+      }
+
+9- No terminal, gere um controlador resource:
+      - php artisan make:controller ProductController --resource
+
+10- No arquivo app/Http/Controllers/ProductController.php, implemente os métodos do CRUD:
+
+namespace App\Http\Controllers;
+
+use App\Models\Product;
+use Illuminate\Http\Request;
+
+class ProductController extends Controller
+{
+    // Listar todos os produtos
+    public function index()
+    {
+        $products = Product::all();
+        return view('products.index', compact('products'));
+    }
+
+    // Exibir formulário para criar um novo produto
+    public function create()
+    {
+        return view('products.create');
+    }
+
+    // Salvar um novo produto
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'nome' => 'required|string|max:255',
+            'preco' => 'required|numeric|min:0',
+        ]);
+
+        Product::create($validated);
+
+        return redirect()->route('products.index')->with('success', 'Produto criado com sucesso!');
+    }
+
+    // Exibir os detalhes de um produto
+    public function show($id)
+    {
+        $product = Product::findOrFail($id);
+        return view('products.show', compact('product'));
+    }
+
+    // Exibir formulário para editar um produto
+    public function edit($id)
+    {
+        $product = Product::findOrFail($id);
+        return view('products.edit', compact('product'));
+    }
+
+    // Atualizar os dados de um produto
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'nome' => 'required|string|max:255',
+            'preco' => 'required|numeric|min:0',
+        ]);
+
+        $product = Product::findOrFail($id);
+        $product->update($validated);
+
+        return redirect()->route('products.index')->with('success', 'Produto atualizado com sucesso!');
+    }
+
+    // Excluir um produto
+    public function destroy($id)
+    {
+        $product = Product::findOrFail($id);
+        $product->delete();
+
+        return redirect()->route('products.index')->with('success', 'Produto excluído com sucesso!');
+    }
+}
+
+11- No arquivo routes/web.php, registre as rotas para o controlador:
+use App\Http\Controllers\ProductController;
+
+Route::resource('products', ProductController::class);
+
+12- Crie um diretório chamado products dentro de resources/views/ e adicione os seguintes arquivos:
+12.1 index.blade.php (Lista de Produtos)____________________________________________________________________________________________________
+
+@extends('layouts.app')
+
+@section('content')
+<h1>Produtos</h1>
+<a href="{{ route('products.create') }}">Criar Novo Produto</a>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Preço</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach ($products as $product)
+        <tr>
+            <td>{{ $product->id }}</td>
+            <td>{{ $product->nome }}</td>
+            <td>R$ {{ number_format($product->preco, 2, ',', '.') }}</td>
+            <td>
+                <a href="{{ route('products.edit', $product->id) }}">Editar</a>
+                <form action="{{ route('products.destroy', $product->id) }}" method="POST" style="display: inline;">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit">Excluir</button>
+                </form>
+            </td>
+        </tr>
+        @endforeach
+    </tbody>
+</table>
+@endsection
+
+12.2 create.blade.php (Criar Produto)____________________________________________________________________________________________________
+@extends('layouts.app')
+
+@section('content')
+<h1>Criar Novo Produto</h1>
+<form action="{{ route('products.store') }}" method="POST">
+    @csrf
+    <label>Nome:</label>
+    <input type="text" name="nome" required>
+    <label>Preço:</label>
+    <input type="number" step="0.01" name="preco" required>
+    <button type="submit">Salvar</button>
+</form>
+@endsection
+
+
+12.3 edit.blade.php (Editar Produto)____________________________________________________________________________________________________
+@extends('layouts.app')
+
+@section('content')
+<h1>Editar Produto</h1>
+<form action="{{ route('products.update', $product->id) }}" method="POST">
+    @csrf
+    @method('PUT')
+    <label>Nome:</label>
+    <input type="text" name="nome" value="{{ $product->nome }}" required>
+    <label>Preço:</label>
+    <input type="number" step="0.01" name="preco" value="{{ $product->preco }}" required>
+    <button type="submit">Atualizar</button>
+</form>
+@endsection
+
+13- Teste o Projeto
+      -php artisan serve(http://127.0.0.1:8000/products)
+
+
+
+
+php artisan migrate:rollback
